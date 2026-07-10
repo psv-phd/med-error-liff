@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บันทึกความคลาดเคลื่อนการจัดยา</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root{
+    --green:#06895a; --green-dark:#04673f; --bg:#f4f6f5;
+    --card:#ffffff; --text:#1f2a26; --muted:#6b7a75; --danger:#d64545;
+    --border:#e1e6e3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Sarabun",sans-serif;
+    background:var(--bg); color:var(--text);
+  }
+  #loading{padding:40px; text-align:center; color:var(--muted);}
+  #main{max-width:520px; margin:0 auto; padding-bottom:40px;}
+  header{
+    background:linear-gradient(135deg,var(--green),var(--green-dark));
+    color:#fff; padding:18px 16px; text-align:center;
+  }
+  header h1{margin:0; font-size:17px; font-weight:600;}
+  header p{margin:4px 0 0; font-size:12px; opacity:.9;}
+
+  .tabs{display:flex; background:#fff; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5;}
+  .tabs button{
+    flex:1; padding:12px; border:none; background:none; font-size:14px;
+    color:var(--muted); font-weight:600; cursor:pointer; border-bottom:3px solid transparent;
+  }
+  .tabs button.active{color:var(--green-dark); border-bottom-color:var(--green);}
+
+  .unit-toggle{display:flex; gap:8px; padding:14px 16px 0;}
+  .unit-toggle button{
+    flex:1; padding:10px; border-radius:8px; border:1.5px solid var(--border);
+    background:#fff; color:var(--muted); font-weight:600; font-size:14px; cursor:pointer;
+  }
+  .unit-toggle button.active{background:var(--green); color:#fff; border-color:var(--green);}
+
+  form{padding:16px;}
+  label{display:block; font-size:13px; color:var(--muted); margin:14px 0 6px; font-weight:600;}
+  input, select{
+    width:100%; padding:11px 12px; border:1.5px solid var(--border); border-radius:8px;
+    font-size:15px; background:#fff; color:var(--text);
+  }
+  input:focus, select:focus{outline:none; border-color:var(--green);}
+  button[type=submit]{
+    width:100%; margin-top:22px; padding:13px; border:none; border-radius:8px;
+    background:var(--green); color:#fff; font-size:15px; font-weight:700; cursor:pointer;
+  }
+  button[type=submit]:active{background:var(--green-dark);}
+  #msg{padding:0 16px; font-size:13px; text-align:center; min-height:18px; color:var(--green-dark); font-weight:600;}
+  #msg.error{color:var(--danger);}
+
+  .report-controls{padding:16px; background:#fff; border-bottom:1px solid var(--border);}
+  .report-controls .row{display:flex; gap:8px; margin-bottom:10px;}
+  .report-controls select, .report-controls input{flex:1;}
+  .report-controls button{
+    width:100%; padding:11px; border:none; border-radius:8px;
+    background:var(--green-dark); color:#fff; font-weight:700; font-size:14px; cursor:pointer;
+  }
+
+  .summary-cards{display:flex; gap:10px; padding:16px; flex-wrap:wrap;}
+  .card{
+    background:var(--card); border-radius:10px; padding:14px; flex:1; min-width:130px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  .card .num{font-size:26px; font-weight:800; color:var(--green-dark);}
+  .card .label{font-size:12px; color:var(--muted); margin-top:2px;}
+
+  .breakdown{padding:0 16px;}
+  .breakdown h3{font-size:14px; margin:14px 0 8px; color:var(--text);}
+  .bar-row{display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:13px;}
+  .bar-row .name{width:130px; flex-shrink:0; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .bar-track{flex:1; background:#eef1ef; border-radius:5px; height:16px; overflow:hidden;}
+  .bar-fill{background:var(--green); height:100%; border-radius:5px;}
+  .bar-row .count{width:24px; text-align:right; font-weight:700; color:var(--text);}
+
+  table{width:100%; border-collapse:collapse; margin:10px 16px 20px; width:calc(100% - 32px); font-size:12.5px;}
+  th, td{padding:7px 6px; text-align:left; border-bottom:1px solid var(--border);}
+  th{color:var(--muted); font-weight:600; background:#fafbfa;}
+  .empty-state{padding:30px 16px; text-align:center; color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  กำลังโหลด...
+  <div id="debugMsg" style="margin-top:14px; font-size:12px; color:#999; padding:0 20px; word-break:break-all;"></div>
+</div>
+
+<div id="main" style="display:none">
+  <header>
+    <h1>ระบบบันทึกความคลาดเคลื่อนการจัดยา</h1>
+    <p id="who">ผู้ใช้งาน: -</p>
+  </header>
+
+  <div class="tabs">
+    <button id="tabEntry" class="active">📝 บันทึกข้อมูล</button>
+    <button id="tabReport">📊 รายงานสรุป</button>
+  </div>
+
+  <!-- ============ ENTRY VIEW ============ -->
+  <div id="entryView">
+    <div class="unit-toggle">
+      <button id="unitOPD_entry" class="active">OPD</button>
+      <button id="unitIPD_entry">IPD</button>
+    </div>
+
+    <form id="form">
+      <label>วันที่</label>
+      <input type="date" id="date" required>
+
+      <label>ชื่อผู้จัด</label>
+      <input type="text" id="name" required>
+
+      <label>ประเภทความคลาดเคลื่อน</label>
+      <select id="errorType" required>
+        <option value="">-- เลือกประเภท --</option>
+        <option>1.จัดผิดชนิด</option>
+        <option>2.จัดผิดความแรง</option>
+        <option>3.จัดผิดจำนวน</option>
+        <option>4.จัดผิดรูปแบบ</option>
+        <option>5.จัดผิดฉลาก/ซอง</option>
+        <option>6.ใส่ตะกร้าสลับคน</option>
+        <option>7.ลืมจัดยา</option>
+      </select>
+
+      <label>ชื่อยาที่สั่ง</label>
+      <input type="text" id="drugOrdered" placeholder="เช่น Paracetamol 500 mg">
+
+      <label>ชื่อยาที่จัดผิด</label>
+      <input type="text" id="drugDispensed" placeholder="เช่น Paracetamol 325 mg">
+
+      <label>กะที่จัดผิด</label>
+      <select id="shift" required>
+        <option value="">-- เลือกกะ --</option>
+        <option>1.เวรเช้า</option>
+        <option>2.สองทุ่ม</option>
+        <option>3.เวรบ่าย</option>
+        <option>4.เวรดึก</option>
+        <option>5.ยาคอนถุงผ้า</option>
+      </select>
+
+      <button type="submit">บันทึกข้อมูล</button>
+    </form>
+    <div id="msg"></div>
+  </div>
+
+  <!-- ============ REPORT VIEW ============ -->
+  <div id="reportView" style="display:none">
+    <div class="unit-toggle" style="padding-top:14px;">
+      <button id="unitOPD_report" class="active">OPD</button>
+      <button id="unitIPD_report">IPD</button>
+    </div>
+
+    <div class="report-controls">
+      <div class="row">
+        <select id="reportType">
+          <option value="daily">รายวัน</option>
+          <option value="monthly">รายเดือน</option>
+          <option value="person">รายบุคคล</option>
+        </select>
+        <input type="date" id="reportDate">
+        <input type="month" id="reportMonth" style="display:none">
+      </div>
+      <div class="row" id="personRow" style="display:none">
+        <select id="personSelect"></select>
+        <input type="month" id="personMonth">
+      </div>
+      <button id="loadReportBtn">แสดงรายงาน</button>
+    </div>
+
+    <div id="reportResult"></div>
+  </div>
+</div>
+
+<script>
+  // ⚠️ แทนที่ด้วย Web app URL จาก Google Apps Script ของท่าน (ลงท้าย /exec)
+  var API_URL = 'https://script.google.com/macros/s/AKfycbwx-iazEcQ6qlRcaQC_dnz9TDMgtm4ay-pfmx-1fJLBWKxqEhQQ-0Vc6-JJpvzumoLpUQ/exec';
+
+  var profile = { userId: '', displayName: '' };
+  var currentUnitEntry = 'OPD';
+  var currentUnitReport = 'OPD';
+
+  // ---------- LIFF INIT ----------
+  // ⚠️ แทนที่ 'YOUR_LIFF_ID' ด้วย LIFF ID จริงของท่าน (ดูคู่มือติดตั้ง)
+  function showDebug(text) {
+    var el = document.getElementById('debugMsg');
+    if (el) el.innerText = text;
+  }
+
+  // เผื่อ liff SDK โหลดไม่สำเร็จ (network/ถูกบล็อก) จะไม่มี object liff เลย
+  var sdkTimeoutId = setTimeout(function () {
+    if (typeof liff === 'undefined') {
+      showDebug('❌ โหลด LINE LIFF SDK ไม่สำเร็จ (เช็คอินเทอร์เน็ต หรือลองเปิดใหม่อีกครั้ง)');
+    } else {
+      showDebug('⏳ liff.init() ใช้เวลานานผิดปกติ... รอสักครู่ หรือปิดแล้วเปิดใหม่');
+    }
+  }, 6000);
+
+  try {
+    liff.init({ liffId: '2010661630-KkiiqrHr' }).then(function () {
+      clearTimeout(sdkTimeoutId);
+      if (!liff.isInClient() && !liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+      return liff.getProfile();
+    }).then(function (p) {
+      if (p) {
+        profile = p;
+        document.getElementById('name').value = p.displayName;
+        document.getElementById('who').innerText = 'ผู้ใช้งาน: ' + p.displayName;
+      }
+      showApp();
+    }).catch(function (err) {
+      clearTimeout(sdkTimeoutId);
+      // เผื่อทดสอบนอกแอป LINE (เปิดผ่านเบราว์เซอร์ปกติ) หรือ error จริง
+      showDebug('⚠️ liff error: ' + (err && err.message ? err.message : JSON.stringify(err)));
+      document.getElementById('who').innerText = 'โหมดทดสอบ (นอก LINE)';
+      showApp();
+    });
+  } catch (syncErr) {
+    clearTimeout(sdkTimeoutId);
+    showDebug('❌ Script error: ' + syncErr.message);
+  }
+
+  function showApp() {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    document.getElementById('date').valueAsDate = new Date();
+    var d = new Date();
+    document.getElementById('reportDate').valueAsDate = d;
+    document.getElementById('reportMonth').value = d.toISOString().slice(0, 7);
+    document.getElementById('personMonth').value = d.toISOString().slice(0, 7);
+  }
+
+  // ---------- TABS ----------
+  document.getElementById('tabEntry').onclick = function () {
+    this.classList.add('active');
+    document.getElementById('tabReport').classList.remove('active');
+    document.getElementById('entryView').style.display = 'block';
+    document.getElementById('reportView').style.display = 'none';
+  };
+  document.getElementById('tabReport').onclick = function () {
+    this.classList.add('active');
+    document.getElementById('tabEntry').classList.remove('active');
+    document.getElementById('reportView').style.display = 'block';
+    document.getElementById('entryView').style.display = 'none';
+    loadPersonList();
+  };
+
+  // ---------- UNIT TOGGLE (Entry) ----------
+  document.getElementById('unitOPD_entry').onclick = function () { setUnitEntry('OPD'); };
+  document.getElementById('unitIPD_entry').onclick = function () { setUnitEntry('IPD'); };
+  function setUnitEntry(u) {
+    currentUnitEntry = u;
+    document.getElementById('unitOPD_entry').classList.toggle('active', u === 'OPD');
+    document.getElementById('unitIPD_entry').classList.toggle('active', u === 'IPD');
+  }
+
+  // ---------- UNIT TOGGLE (Report) ----------
+  document.getElementById('unitOPD_report').onclick = function () { setUnitReport('OPD'); };
+  document.getElementById('unitIPD_report').onclick = function () { setUnitReport('IPD'); };
+  function setUnitReport(u) {
+    currentUnitReport = u;
+    document.getElementById('unitOPD_report').classList.toggle('active', u === 'OPD');
+    document.getElementById('unitIPD_report').classList.toggle('active', u === 'IPD');
+    loadPersonList();
+  }
+
+  // ---------- REPORT TYPE SWITCH ----------
+  document.getElementById('reportType').addEventListener('change', function () {
+    var v = this.value;
+    document.getElementById('reportDate').style.display = v === 'daily' ? 'block' : 'none';
+    document.getElementById('reportMonth').style.display = v === 'monthly' ? 'block' : 'none';
+    document.getElementById('personRow').style.display = v === 'person' ? 'flex' : 'none';
+  });
+
+  function loadPersonList() {
+    fetch(API_URL + '?action=personList&unit=' + currentUnitReport)
+      .then(function (r) { return r.json(); })
+      .then(function (names) {
+        var sel = document.getElementById('personSelect');
+        sel.innerHTML = '';
+        (names || []).forEach(function (n) {
+          var opt = document.createElement('option');
+          opt.value = n; opt.innerText = n;
+          sel.appendChild(opt);
+        });
+      })
+      .catch(function (err) { console.error(err); });
+  }
+
+  // ---------- SUBMIT FORM ----------
+  document.getElementById('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var msg = document.getElementById('msg');
+    msg.className = ''; msg.innerText = 'กำลังบันทึก...';
+    var data = {
+      unit: currentUnitEntry,
+      date: document.getElementById('date').value,
+      name: document.getElementById('name').value,
+      userId: profile.userId,
+      errorType: document.getElementById('errorType').value,
+      drugOrdered: document.getElementById('drugOrdered').value,
+      drugDispensed: document.getElementById('drugDispensed').value,
+      shift: document.getElementById('shift').value
+    };
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // เลี่ยง CORS preflight
+      body: JSON.stringify({ action: 'save', data: data })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res.status === 'ok') {
+          msg.className = '';
+          msg.innerText = '✅ บันทึกสำเร็จ';
+          document.getElementById('errorType').value = '';
+          document.getElementById('drugOrdered').value = '';
+          document.getElementById('drugDispensed').value = '';
+          document.getElementById('shift').value = '';
+        } else {
+          msg.className = 'error';
+          msg.innerText = '❌ ' + res.message;
+        }
+      })
+      .catch(function (err) {
+        msg.className = 'error';
+        msg.innerText = '❌ เกิดข้อผิดพลาด: ' + err.message;
+      });
+  });
+
+  // ---------- LOAD REPORT ----------
+  document.getElementById('loadReportBtn').onclick = function () {
+    var type = document.getElementById('reportType').value;
+    var result = document.getElementById('reportResult');
+    result.innerHTML = '<div class="empty-state">กำลังโหลดรายงาน...</div>';
+
+    var url;
+    if (type === 'daily') {
+      var dateVal = document.getElementById('reportDate').value;
+      url = API_URL + '?action=daily&unit=' + currentUnitReport + '&date=' + dateVal;
+    } else if (type === 'monthly') {
+      var monthVal = document.getElementById('reportMonth').value;
+      url = API_URL + '?action=monthly&unit=' + currentUnitReport + '&month=' + monthVal;
+    } else {
+      var person = encodeURIComponent(document.getElementById('personSelect').value);
+      var pMonth = document.getElementById('personMonth').value;
+      url = API_URL + '?action=person&unit=' + currentUnitReport + '&name=' + person + '&month=' + pMonth;
+    }
+    fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(renderReport)
+      .catch(function (err) {
+        result.innerHTML = '<div class="empty-state">❌ โหลดรายงานไม่สำเร็จ: ' + err.message + '</div>';
+      });
+  };
+
+  function renderReport(summary) {
+    var result = document.getElementById('reportResult');
+    if (!summary || summary.total === 0) {
+      result.innerHTML = '<div class="empty-state">ไม่พบข้อมูลในช่วงที่เลือก</div>';
+      return;
+    }
+    var html = '';
+    html += '<div class="summary-cards"><div class="card"><div class="num">' + summary.total + '</div><div class="label">รายการทั้งหมด</div></div></div>';
+
+    html += renderBreakdown_('แยกตามประเภทความคลาดเคลื่อน', summary.byType);
+    html += renderBreakdown_('แยกตามกะ', summary.byShift);
+    html += renderBreakdown_('แยกตามผู้จัด', summary.byPerson);
+
+    html += '<h3 style="padding:0 16px; font-size:14px;">รายการล่าสุด</h3>';
+    html += '<table><tr><th>วันที่</th><th>ผู้จัด</th><th>ประเภท</th><th>กะ</th></tr>';
+    summary.records.slice(0, 50).forEach(function (r) {
+      html += '<tr><td>' + r.date + '</td><td>' + r.name + '</td><td>' + r.errorType + '</td><td>' + r.shift + '</td></tr>';
+    });
+    html += '</table>';
+
+    result.innerHTML = html;
+  }
+
+  function renderBreakdown_(title, obj) {
+    var keys = Object.keys(obj);
+    var max = Math.max.apply(null, keys.map(function (k) { return obj[k]; }));
+    var html = '<div class="breakdown"><h3>' + title + '</h3>';
+    keys.sort(function (a, b) { return obj[b] - obj[a]; }).forEach(function (k) {
+      var pct = Math.round((obj[k] / max) * 100);
+      html += '<div class="bar-row"><div class="name">' + k + '</div><div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div><div class="count">' + obj[k] + '</div></div>';
+    });
+    html += '</div>';
+    return html;
+  }
+</script>
+</body>
+</html>
