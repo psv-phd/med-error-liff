@@ -180,7 +180,7 @@
 
 <script>
   // ⚠️ แทนที่ด้วย Web app URL จาก Google Apps Script ของท่าน (ลงท้าย /exec)
-  var API_URL = 'https://script.google.com/macros/s/AKfycbwx-iazEcQ6qlRcaQC_dnz9TDMgtm4ay-pfmx-1fJLBWKxqEhQQ-0Vc6-JJpvzumoLpUQ/exec';
+  var API_URL = 'https://script.google.com/macros/s/AKfycbwkLAg35A-CFbJKJr9KS6sQHU4EDHSUvTmLf-WBitnT4XsLgFHov55VSpenBSc9dypIsw/exec';
 
   var profile = { userId: '', displayName: '' };
   var currentUnitEntry = 'OPD';
@@ -301,21 +301,18 @@
     e.preventDefault();
     var msg = document.getElementById('msg');
     msg.className = ''; msg.innerText = 'กำลังบันทึก...';
-    var data = {
+    var params = new URLSearchParams({
+      action: 'save',
       unit: currentUnitEntry,
       date: document.getElementById('date').value,
       name: document.getElementById('name').value,
-      userId: profile.userId,
+      userId: profile.userId || '',
       errorType: document.getElementById('errorType').value,
       drugOrdered: document.getElementById('drugOrdered').value,
       drugDispensed: document.getElementById('drugDispensed').value,
       shift: document.getElementById('shift').value
-    };
-    fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // เลี่ยง CORS preflight
-      body: JSON.stringify({ action: 'save', data: data })
-    })
+    });
+    fetch(API_URL + '?' + params.toString())
       .then(function (r) { return r.json(); })
       .then(function (res) {
         if (res.status === 'ok') {
