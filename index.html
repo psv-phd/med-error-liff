@@ -79,7 +79,8 @@
   .bar-fill{background:var(--green); height:100%; border-radius:5px;}
   .bar-row .count{width:24px; text-align:right; font-weight:700; color:var(--text);}
 
-  table{width:100%; border-collapse:collapse; margin:10px 16px 20px; width:calc(100% - 32px); font-size:12.5px;}
+  table{width:100%; border-collapse:collapse; font-size:12px; white-space:nowrap;}
+  .table-wrap{overflow-x:auto; margin:10px 16px 20px; border:1px solid var(--border); border-radius:8px;}
   th, td{padding:7px 6px; text-align:left; border-bottom:1px solid var(--border);}
   th{color:var(--muted); font-weight:600; background:#fafbfa;}
   .empty-state{padding:30px 16px; text-align:center; color:var(--muted); font-size:13px;}
@@ -373,11 +374,11 @@
     html += renderBreakdown_('แยกตามผู้จัด', summary.byPerson);
 
     html += '<h3 style="padding:0 16px; font-size:14px;">รายการล่าสุด</h3>';
-    html += '<table><tr><th>วันที่</th><th>ผู้จัด</th><th>ประเภท</th><th>กะ</th></tr>';
+    html += '<div class="table-wrap"><table><tr><th>วันที่</th><th>ผู้จัด</th><th>ประเภท</th><th>ยาที่สั่ง</th><th>ยาที่จัดผิด</th><th>กะ</th></tr>';
     summary.records.slice(0, 50).forEach(function (r) {
-      html += '<tr><td>' + r.date + '</td><td>' + r.name + '</td><td>' + r.errorType + '</td><td>' + r.shift + '</td></tr>';
+      html += '<tr><td>' + r.date + '</td><td>' + r.name + '</td><td>' + r.errorType + '</td><td>' + (r.drugOrdered || '-') + '</td><td>' + (r.drugDispensed || '-') + '</td><td>' + r.shift + '</td></tr>';
     });
-    html += '</table>';
+    html += '</table></div>';
 
     result.innerHTML = html;
   }
