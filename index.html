@@ -153,7 +153,7 @@
 
   <!-- ============ REPORT VIEW ============ -->
   <div id="reportView" style="display:none">
-    <div class="unit-toggle" style="padding-top:14px;">
+    <div class="unit-toggle" id="unitToggleReport" style="padding-top:14px;">
       <button id="unitOPD_report" class="active">OPD</button>
       <button id="unitIPD_report">IPD</button>
     </div>
@@ -271,7 +271,6 @@
     currentUnitReport = u;
     document.getElementById('unitOPD_report').classList.toggle('active', u === 'OPD');
     document.getElementById('unitIPD_report').classList.toggle('active', u === 'IPD');
-    loadPersonList();
   }
 
   // ---------- REPORT TYPE SWITCH ----------
@@ -280,10 +279,13 @@
     document.getElementById('reportDate').style.display = v === 'daily' ? 'block' : 'none';
     document.getElementById('reportMonth').style.display = v === 'monthly' ? 'block' : 'none';
     document.getElementById('personRow').style.display = v === 'person' ? 'flex' : 'none';
+    // รายบุคคลรวม OPD+IPD เข้าด้วยกันเสมอ ไม่ต้องเลือกหน่วยงาน
+    document.getElementById('unitToggleReport').style.display = v === 'person' ? 'none' : 'flex';
+    if (v === 'person') loadPersonList();
   });
 
   function loadPersonList() {
-    fetch(API_URL + '?action=personList&unit=' + currentUnitReport)
+    fetch(API_URL + '?action=personList')
       .then(function (r) { return r.json(); })
       .then(function (names) {
         var sel = document.getElementById('personSelect');
@@ -350,7 +352,7 @@
     } else {
       var person = encodeURIComponent(document.getElementById('personSelect').value);
       var pMonth = document.getElementById('personMonth').value;
-      url = API_URL + '?action=person&unit=' + currentUnitReport + '&name=' + person + '&month=' + pMonth;
+      url = API_URL + '?action=person&name=' + person + '&month=' + pMonth;
     }
     fetch(url)
       .then(function (r) { return r.json(); })
@@ -362,12 +364,16 @@
 
   function renderReport(summary) {
     var result = document.getElementById('reportResult');
-    if (!summary || summary.total === 0) {
+    if (!summary || (summary.total === 0 && !summary.dispenseTotal)) {
       result.innerHTML = '<div class="empty-state">ไม่พบข้อมูลในช่วงที่เลือก</div>';
       return;
     }
     var html = '';
-    html += '<div class="summary-cards"><div class="card"><div class="num">' + summary.total + '</div><div class="label">รายการทั้งหมด</div></div></div>';
+    html += '<div class="summary-cards">';
+    html += '<div class="card"><div class="num">' + summary.total + '</div><div class="label">จำนวนที่จัดผิด</div></div>';
+    html += '<div class="card"><div class="num">' + (summary.dispenseTotal || 0) + '</div><div class="label">จำนวนที่จัดทั้งหมด</div></div>';
+    html += '<div class="card"><div class="num">' + (summary.errorRate != null ? summary.errorRate : '-') + '</div><div class="label">อัตราคลาดเคลื่อน/1000 ครั้ง</div></div>';
+    html += '</div>';
 
     html += renderBreakdown_('แยกตามประเภทความคลาดเคลื่อน', summary.byType);
     html += renderBreakdown_('แยกตามกะ', summary.byShift);
@@ -385,6 +391,7 @@
 
   function renderBreakdown_(title, obj) {
     var keys = Object.keys(obj);
+    if (keys.length === 0) return '';
     var max = Math.max.apply(null, keys.map(function (k) { return obj[k]; }));
     var html = '<div class="breakdown"><h3>' + title + '</h3>';
     keys.sort(function (a, b) { return obj[b] - obj[a]; }).forEach(function (k) {
