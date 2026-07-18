@@ -116,7 +116,8 @@
       <input type="date" id="date" required>
 
       <label>ชื่อผู้จัด</label>
-      <input type="text" id="name" required>
+      <input type="text" id="name" list="nameList" required autocomplete="off">
+      <datalist id="nameList"></datalist>
 
       <label>ประเภทความคลาดเคลื่อน</label>
       <select id="errorType" required>
@@ -238,6 +239,24 @@
     document.getElementById('reportDate').valueAsDate = d;
     document.getElementById('reportMonth').value = d.toISOString().slice(0, 7);
     document.getElementById('personMonth').value = d.toISOString().slice(0, 7);
+    loadNameSuggestions();
+  }
+
+  // โหลดรายชื่อที่เคยมีคนกรอกไว้แล้ว มาเป็นตัวช่วยพิมพ์ (autocomplete)
+  // ไม่ล็อกการพิมพ์ - พิมพ์ชื่อใหม่ได้อิสระเสมอ ไม่ต้องแก้โค้ดเมื่อมีคนใหม่
+  function loadNameSuggestions() {
+    fetch(API_URL + '?action=personList')
+      .then(function (r) { return r.json(); })
+      .then(function (names) {
+        var dl = document.getElementById('nameList');
+        dl.innerHTML = '';
+        (names || []).forEach(function (n) {
+          var opt = document.createElement('option');
+          opt.value = n;
+          dl.appendChild(opt);
+        });
+      })
+      .catch(function (err) { console.error(err); });
   }
 
   // ---------- TABS ----------
@@ -325,6 +344,7 @@
           document.getElementById('drugOrdered').value = '';
           document.getElementById('drugDispensed').value = '';
           document.getElementById('shift').value = '';
+          loadNameSuggestions();
         } else {
           msg.className = 'error';
           msg.innerText = '❌ ' + res.message;
